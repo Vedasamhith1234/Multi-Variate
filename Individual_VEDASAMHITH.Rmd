@@ -1,0 +1,208 @@
+---
+title: "HW"
+author: "Vedasamhith Alloori"
+date: "4/14/23"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+
+library(readr)
+library(MVA)
+library(HSAUR2)
+library(SciViews)
+library(scatterplot3d)
+library(car)
+library(lattice)
+library(GGally)
+library(ggplot2)
+library(ggridges)
+library(ggthemes)
+library(cowplot)
+library(gapminder)
+library(gganimate)
+library(dplyr)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+library(Hotelling)
+library(stats)
+library(biotools)
+library(factoextra)
+library(psych)
+library(corrplot)
+library(cluster)
+library(magrittr)
+library(NbClust)
+library(MASS)
+library(gvlma)
+library(leaps)
+library(relaimpo)
+library(factoextra)
+library(FactoMineR)
+library(psych)
+library(corrplot)
+library(devtools)
+
+HRData11 <- read.csv("C:/Users/ta560/Downloads/aug_trains.csv")
+head(HRData11)
+dim(HRData11)
+str(HRData11)
+
+###HR Analytics: Job Change of Data Scientists: This dataset contains information about data scientists who are looking for a job change. The dependent variable is "target" with two factors: "0" indicating that the employee is not looking for a job change, and "1" indicating that the employee is looking for a job change. The independent variables include both qualitative and quantitative variables such as "city", "education_level", "company_size", and "last_new_job".
+```
+
+```{r}
+HRData11.data <- as.matrix(HRData11[,c(4:4,10:11,13:14)])
+head(HRData11.data)
+row.names(HRData11.data) <- HRData11$enrollee_id
+HRData11_raw <- cbind(HRData11.data, as.numeric(as.factor(HRData11$target))-1)
+colnames(HRData11_raw)[5] <- "target"
+smp_size_raw <- floor(0.75 * nrow(HRData11_raw))
+train_ind_raw <- sample(nrow(HRData11_raw), size = smp_size_raw)
+train_raw.df <- as.data.frame(HRData11_raw[train_ind_raw, ])
+test_raw.df <- as.data.frame(HRData11_raw[-train_ind_raw, ])
+HRData11_raw.lda <- lda(formula = train_raw.df$gender ~ ., data = train_raw.df)
+HRData11_raw.lda
+head(HRData11_raw.lda)
+summary(HRData11_raw.lda)
+print(HRData11_raw.lda)
+plot(HRData11_raw.lda)
+##This plot describes the intersection where have taken male vs female
+```
+
+```{r}
+HRData11_raw.lda.predict <- predict(HRData11_raw.lda, newdata = train_raw.df)
+HRData11_raw.lda.predict$class
+HRData11_raw.lda.predict$x
+# Get the target as a dataframe.
+HRData11_raw.lda.predict.target <- as.data.frame(HRData11_raw.lda.predict$x)
+```
+
+```{r}
+# Wilk's Lambda and F test for each variable
+m <- manova(cbind(target,training_hours)~gender,data=HRData11)
+summary(m,test="Wilks")
+summary(m,test="Pillai")
+summary.aov(m)
+##This is the variable for based on gender on the target and the training hours 
+```
+
+```{r}
+###PCA
+HRData11 <- read.csv("C:/Users/ta560/Downloads/aug_trains.csv")
+str(HRData11)
+attach(HRData11)
+#Get the Correlations between the measurements
+cor(HRData11[1])
+# Using prcomp to compute the principal components (eigenvalues and eigenvectors). With scale=TRUE, variable means are set to zero, and variances set to one
+HRData11_pca <- prcomp(HRData11[,1],scale=TRUE)
+HRData11_pca
+summary(HRData11_pca)
+# sample scores stored in HRData11_pca
+
+(eigen_HRData11 <- HRData11_pca$sdev^2)
+
+eigen_HRData11
+sumlambdas <- sum(eigen_HRData11)
+sumlambdas
+propvar <- eigen_HRData11/sumlambdas
+propvar
+cumvar_HRData11 <- cumsum(propvar)
+cumvar_HRData11
+matlambdas <- rbind(eigen_HRData11,propvar,cumvar_HRData11)
+rownames(matlambdas) <- c("Eigenvalues","Prop. variance","Cum. prop. variance")
+round(matlambdas,4)
+summary(HRData11_pca)
+HRData11_pca$rotation
+print(HRData11_pca)
+## Sample scores stored in sparrow_pca$x
+HRData11_pca$x
+# Identifying the scores by their target status
+HRData11 <- cbind(data.frame(target),HRData11_pca$x)
+HRData11
+
+## F ratio tests  `   
+var.test(PC1~HRData11$target,data=HRData11)
+# Levene's tests (one-sided)
+library(car)
+
+# Plotting the targets for the first
+plot(HRData11$PC1, HRData11$PC1,pch=ifelse(HRData11$target == "S",1,16),xlab="PC1", ylab="PC1", main="49 HRData11 against values for PC1 & PC1")
+plot(eigen_HRData11, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+plot(log(eigen_HRData11), xlab = "Component number",ylab = "log(Component variance)", type="l",main = "Log(eigenvalue) diagram")
+print(summary(HRData11_pca))
+diag(cov(HRData11_pca$x))
+xlim <- range(HRData11_pca$x[,1])
+HRData11_pca$x[,1]
+HRData11_pca$x
+plot(HRData11_pca$x,xlim=xlim,ylim=xlim)
+HRData11_pca$rotation[,1]
+HRData11_pca$rotation
+plot(HRData11[,-1])
+HRData11_pca$x
+plot(HRData11_pca)
+#get the original value of the data based on PCA
+center <- HRData11_pca$center
+scale <- HRData11_pca$scale
+new_HRData11 <- as.matrix(HRData11[,-1])
+predict(HRData11_pca)[,1]
+#The aboved two gives us the same thing. predict is a good function to know.
+HRData11$target <- as.factor(HRData11$target)
+
+```
+
+```{r}
+###Logistic regression
+
+## Exploratory Analysis
+HRData11 <- read.csv("C:/Users/ta560/Downloads/aug_trains.csv")
+
+xtabs(~ target + education_level, data=HRData11)
+xtabs(~ target + city, data=HRData11)
+xtabs(~ target + gender, data=HRData11)
+
+logistic_simple <- glm(target ~ gender, data=HRData11, family="binomial")
+summary(logistic_simple)
+plot(logistic_simple)
+
+
+logistic_simple1 <- glm(target ~ city, data=HRData11, family="binomial")
+summary(logistic_simple1)
+plot(logistic_simple1)
+
+
+
+
+logistic <- glm(target ~ gender, data=HRData11, family="binomial")
+summary(logistic)
+
+ll.null <- logistic$null.deviance/-2
+ll.proposed <- logistic$deviance/-2
+(ll.null - ll.proposed) / ll.null
+
+1 - pchisq(2*(ll.proposed - ll.null), df=(length(logistic$coefficients)-1))
+predicted.data <- data.frame(probability.of.target=logistic$fitted.values,probability.of.target=HRData11$target)
+predicted.data <- predicted.data[order(predicted.data$probability.of.target, decreasing=FALSE),]
+predicted.data$rank <- 1:nrow(predicted.data)
+## Lastly, we can plot the predicted probabilities for each 
+ggplot(data=predicted.data, aes(x=rank, y=probability.of.target)) +
+geom_point(aes(color=probability.of.target), alpha=1, shape=4, stroke=2) +
+xlab("Index") +
+ylab("Predicted probability leaving the company")
+
+# From Caret
+pdata <- predict(logistic,newdata=HRData11,type="response" )
+pdata
+HRData11$target
+pdataF <- as.factor(ifelse(test=as.numeric(pdata>0.5) == 0, yes ="Leaving the company", no="Staying in the company"))
+
+#Have predicted the data if the probability of the employees are leaving the company where i got index of is very low where there isn't much to predict for this current data set. We conclude that we cant predict for this data
+
+
+
+
+```
+

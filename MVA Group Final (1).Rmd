@@ -1,0 +1,375 @@
+---
+title: "MVA Group Final"
+author: "Vedasamhith Alloori"
+date: "2023-04-22"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+library(readr)
+library(MVA)
+library(HSAUR2)
+library(SciViews)
+library(scatterplot3d)
+library(car)
+library(lattice)
+library(GGally)
+library(ggplot2)
+library(ggridges)
+library(ggthemes)
+library(cowplot)
+library(gapminder)
+library(gganimate)
+library(ggfortify)
+library(dplyr)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+library(Hotelling)
+library(stats)
+library(biotools)
+library(factoextra)
+library(psych)
+library(corrplot)
+library(tidyverse)
+library(cluster)
+library(magrittr)
+library(NbClust)
+library(MASS)
+library(gvlma)
+library(leaps)
+library(relaimpo)
+library(tidyverse)
+```
+
+```{r}
+Students <- read.csv("C:/Users/ta560/Downloads/Class_Survey.csv")
+Students
+head(Students)
+summary(Students)
+str(Students)
+# This is the class group data of the students of their weekly social media usage and it states whether the students are addicted if  the number of times open is equal to or more 105 . If it less than that , they are not addictive.
+```
+
+```{r}
+#Finding Z score for Vedasamhith(ROW 15-21)
+Students_Zscore <- scale(Students[c(3:14)])
+Students_Zscore
+options(max.print = 10000)
+## Have found my z score which is from 15-21 rows.Have calculated the mean of the total screen time which is 0.341186. It represents the social media usage is higher than the average social media usage of the class by approximately 0.34 standard deviations.
+
+Students_Gr<-Students[Students$Student == "VEDA ALLOORI",]
+barplot(Students_Gr$Total.Social.Media.Screen.Time..hrs.)
+barplot(Students_Gr$Total.Social.Media.Screen.Time..hrs., main = "Total Screen time", xlab = "Student", ylab = "Hours", col = "Blue", names.arg = Students_Gr$Student)
+hist(Students_Gr$Total.Social.Media.Screen.Time..hrs.)
+boxplot(Students_Gr$Total.Social.Media.Screen.Time..hrs.)
+##Have plotted a barplot filtering to veda alloori on the total screen time for each week
+
+
+#Finding Correlation between them
+cor(Students[c(3:13)])
+```
+
+```{r}
+#####  EFA
+
+library(psych)
+attach(Students)
+fit.pc <- principal(Students[3:13], nfactors=5, rotate="varimax")
+fit.pc
+round(fit.pc$values, 3)
+fit.pc$loadings
+for (i in c(1,3,2,4,5)) { print(fit.pc$loadings[[1,i]])}
+fit.pc$communality
+fit.pc$scores
+fa.parallel(Students[3:13]) 
+#From this plot we can see that between 5 and 6 there is a dip so have took 5 factors
+fa.plot(fit.pc)
+fa.diagram(fit.pc) 
+vss(Students[3:13])
+
+### We chat and tik tok are in RC1 values of 1 and 0.9. Snapchat ,Linkedin, insta and telegram are in RC2 values of 0.7,0.7,0.6 and 0.5 respectively.Twitter and Facebook messenger are in RC3 of 0.8 and 0.7 respectively.Be real and whatsapp are in 0.9 and 0.5 in RC4 and messages are in RC5 of 0.9.
+
+
+str(Students)
+
+
+Students$Student <- as.factor(Students$Student)
+Students$Week <- as.factor(Students$Week)
+```
+
+```{r}
+###Logistic regression
+
+## Exploratory Analysis
+
+xtabs(~ Social.Media.Addiction + Student, data=Students)
+xtabs(~ Social.Media.Addiction + Week, data=Students)
+
+summary(logistic_simple)
+plot(logistic_simple)
+
+summary(logistic_simple1)
+plot(logistic_simple1)
+
+
+predicted.data <- data.frame(probability.of.Social.Media.Addiction=logistic_simple$fitted.values,Week=Students$Week)
+predicted.data
+
+
+xtabs(~ probability.of.Social.Media.Addiction + Student, data=predicted.data)
+logistic <- glm(Social.Media.Addiction ~ ., data=Students, family="binomial")
+summary(logistic)
+
+ll.null <- logistic$null.deviance/-2
+ll.proposed <- logistic$deviance/-2
+(ll.null - ll.proposed) / ll.null
+
+1 - pchisq(2*(ll.proposed - ll.null), df=(length(logistic$coefficients)-1))
+predicted.data <- data.frame(probability.of.Social.Media.Addiction=logistic$fitted.values,probability.of.Social.Media.Addiction=Students$Social.Media.Addiction)
+predicted.data <- predicted.data[order(predicted.data$probability.of.Social.Media.Addiction, decreasing=FALSE),]
+predicted.data$rank <- 1:nrow(predicted.data)
+## Lastly, we can plot the predicted probabilities for each 
+ggplot(data=predicted.data, aes(x=rank, y=probability.of.Social.Media.Addiction)) +
+geom_point(aes(color=probability.of.Social.Media.Addiction), alpha=1, shape=4, stroke=2) +
+xlab("Index") +
+ylab("Predicted probability being addicted")
+
+
+# From Caret
+pdata <- predict(logistic,newdata=Students,type="response" )
+pdata
+Students$Social.Media.Addiction
+pdataF <- as.factor(ifelse(test=as.numeric(pdata>0.5) == 0, yes="Addicted", no="Not Addicted"))
+
+library(caTools)
+library(pROC)
+summary(Students)
+
+
+Students$Social.Media.Addiction<-as.factor(Students$Social.Media.Addiction)
+str(Students)
+
+set.seed(123)
+split <- sample.split(Students$Social.Media.Addiction, SplitRatio = 0.70)
+train_cs <- subset(Students, split == TRUE)
+test_cs <- subset(Students, split == FALSE)
+
+Xtrain_cs <- train_cs[, 1:14]
+Ytrain_cs <- train_cs[, 16]
+Ytrain_cs <- unlist(Ytrain_cs)
+
+Ytrain_cs
+
+Xtest_cs <- test_cs[, 1:14]
+x_cs <- cbind(Xtrain_cs, Ytrain_cs)
+logistic_v <- glm(Ytrain_cs ~ ., data = x_cs, family = 'binomial')
+
+summary(logistic_v)
+
+# for reproducibility
+set.seed(1234) 
+probabilities_cs <- predict(logistic_v, newdata = Xtest_cs, type = "response")
+
+predicted_cs <- ifelse(probabilities_cs > 1.5, "Yes", "No")
+actual_cs <- ifelse(test_cs$Social.Media.Addiction== 1, "Yes", "No")
+confusion_cs <- table(predicted_cs, actual_cs)
+confusion_cs
+roc_cs <- roc(test_cs$Social.Media.Addiction, probabilities_cs)
+auc_cs <- auc(roc_cs)
+auc_cs
+ggroc(roc_cs, color = "blue", legacy.axes = TRUE) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  scale_x_continuous(labels = scales::percent_format()) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(x = "False Positive Rate", y = "True Positive Rate",
+       title = paste("ROC Curve (AUC = ", round(auc_cs, 2), ")")) +
+  annotate("text", x = 0.5, y = 0.5, label = paste0("AUC = ", round(auc_cs, 2)))
+set.seed(1234) 
+probabilities_cs <- predict(logistic_v, newdata = Xtest_cs, type = "response")
+
+predicted_cs <- ifelse(probabilities_cs > 1.5, "Addicted", "Not Addicted")
+actual_cs <- ifelse(test_cs$Social.Media.Addiction== 1, "Addcited", "Not Addicted")
+confusion_cs <- table(predicted_cs, actual_cs)
+confusion_cs
+roc_cs <- roc(test_cs$Social.Media.Addiction, probabilities_cs)
+auc_cs <- auc(roc_cs)
+auc_cs
+ggroc(roc_cs, color = "blue", legacy.axes = TRUE) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  scale_x_continuous(labels = scales::percent_format()) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(x = "False Positive Rate", y = "True Positive Rate",
+       title = paste("ROC Curve (AUC = ", round(auc_cs, 2), ")")) +
+  annotate("text", x = 0.5, y = 0.5, label = paste0("AUC = ", round(auc_cs, 2)))
+
+## Yes The model has a accuracy of 76%, and that implies that it accurately predicts social media addiction 76%Have got accuracy as percentage as 76% but the data is not enough. 
+```
+
+```{r}
+## Clustering
+
+#Distance measure
+Students_dist <- get_dist(Students[3:13], stand = TRUE, method = "euclidean")
+Students_dist
+Students_sn <- hclust(Students_dist, method = "single")
+plot(Students_sn, hang=-1,xlab="Object",ylab="Distance",
+     main="Dendrogram. Nearest neighbor linkage")
+
+
+
+Students_fn <- hclust(Students_dist)
+plot(Students_fn, hang=-1,xlab="Object",ylab="Distance",
+     main="Dendrogram. Farthest neighbor linkage")
+
+
+Students_avg <- hclust(Students_dist)
+plot(Students_avg, hang=-1,xlab="Object",ylab="Distance",
+     main="Dendrogram. Group average linkage")
+
+
+plot(as.dendrogram(Students_sn),ylab="Distance between each Studentspoint",ylim=c(0,2.5))
+
+plot(as.dendrogram(Students_fn),ylab="Distance between each Studentspoint",ylim=c(0,2.5))
+
+#Students Scaling
+matstd_Students <- scale(Students[3:13])
+matstd_Students
+
+#Kmeans
+kmeans.res <- kmeans(matstd_Students,3, nstart = 25)
+kmeans.res
+
+
+# Determining the optimal numbers of Clusters
+
+fviz_nbclust(matstd_Students, kmeans, method = "gap_stat")
+
+
+fviz_nbclust <- function (x, FUNcluster = NULL, method = c("silhouette", "wss", 
+                                                           "gap_stat"), diss = NULL, k.max = 10, nboot = 100, verbose = interactive(), 
+                          barfill = "steelblue", barcolor = "steelblue", linecolor = "steelblue", 
+                          print.summary = TRUE, ...) 
+{
+  set.seed(123)
+  if (k.max < 2) 
+    stop("k.max must bet > = 2")
+  method = match.arg(method)
+  if (!inherits(x, c("Students.frame", "matrix")) & !("Best.nc" %in% 
+                                                  names(x))) 
+    stop("x should be an object of class matrix/Students.frame or ", 
+         "an object created by the function NbClust() [NbClust package].")
+  if (inherits(x, "list") & "Best.nc" %in% names(x)) {
+    best_nc <- x$Best.nc
+    if (any(class(best_nc) == "numeric") ) 
+      print(best_nc)
+    else if (any(class(best_nc) == "matrix") )
+      .viz_NbClust(x, print.summary, barfill, barcolor)
+  }
+  else if (is.null(FUNcluster)) 
+    stop("The argument FUNcluster is required. ", "Possible values are kmeans, pam, hcut, clara, ...")
+  else if (!is.function(FUNcluster)) {
+    stop("The argument FUNcluster should be a function. ", 
+         "Check if you're not overriding the specified function name somewhere.")
+  }
+  else if (method %in% c("silhouette", "wss")) {
+    if (is.Students.frame(x)) 
+      x <- as.matrix(x)
+    if (is.null(diss)) 
+      diss <- stats::dist(x)
+    v <- rep(0, k.max)
+    if (method == "silhouette") {
+      for (i in 2:k.max) {
+        clust <- FUNcluster(x, i, ...)
+        v[i] <- .get_ave_sil_width(diss, clust$cluster)
+      }
+    }
+    else if (method == "wss") {
+      for (i in 1:k.max) {
+        clust <- FUNcluster(x, i, ...)
+        v[i] <- .get_withinSS(diss, clust$cluster)
+      }
+    }
+    df <- Students.frame(clusters = as.factor(1:k.max), y = v, 
+                     stringsAsFactors = TRUE)
+    ylab <- "Total Within Sum of Square"
+    if (method == "silhouette") 
+      ylab <- "Average silhouette width"
+    p <- ggpubr::ggline(df, x = "clusters", y = "y", group = 1, 
+                        color = linecolor, ylab = ylab, xlab = "Number of clusters k", 
+                        main = "Optimal number of clusters")
+    if (method == "silhouette") 
+      p <- p + geom_vline(xintercept = which.max(v), linetype = 2, 
+                          color = linecolor)
+    return(p)
+  }
+  else if (method == "gap_stat") {
+    extra_args <- list(...)
+    gap_stat <- cluster::clusGap(x, FUNcluster, K.max = k.max, 
+                                 B = nboot, verbose = verbose, ...)
+    if (!is.null(extra_args$maxSE)) 
+      maxSE <- extra_args$maxSE
+    else maxSE <- list(method = "firstSEmax", SE.factor = 1)
+    p <- fviz_gap_stat(gap_stat, linecolor = linecolor, 
+                       maxSE = maxSE)
+    return(p)
+  }
+}
+
+.viz_NbClust <- function (x, print.summary = TRUE, barfill = "steelblue", 
+                          barcolor = "steelblue") 
+{
+  best_nc <- x$Best.nc
+  if (any(class(best_nc) == "numeric") )
+    print(best_nc)
+  else if (any(class(best_nc) == "matrix") ) {
+    best_nc <- as.Students.frame(t(best_nc), stringsAsFactors = TRUE)
+    best_nc$Number_clusters <- as.factor(best_nc$Number_clusters)
+    if (print.summary) {
+      ss <- summary(best_nc$Number_clusters)
+      cat("Among all indices: \n===================\n")
+      for (i in 1:length(ss)) {
+        cat("*", ss[i], "proposed ", names(ss)[i], 
+            "as the best number of clusters\n")
+      }
+      cat("\nConclusion\n=========================\n")
+      cat("* According to the majority rule, the best number of clusters is ", 
+          names(which.max(ss)), ".\n\n")
+    }
+    df <- Students.frame(Number_clusters = names(ss), freq = ss, 
+                     stringsAsFactors = TRUE)
+    p <- ggpubr::ggbarplot(df, x = "Number_clusters", 
+                           y = "freq", fill = barfill, color = barcolor) + 
+      labs(x = "Number of clusters k", y = "Frequency among all indices", 
+           title = paste0("Optimal number of clusters - k = ", 
+                          names(which.max(ss))))
+    return(p)
+  }
+}
+
+
+
+# Visualize
+
+
+
+pam.res <- pam(matstd_Students, 2)
+# Visualize
+fviz_cluster(pam.res)
+
+
+
+res.hc <- matstd_Students %>% scale() %>% dist(method = "euclidean") %>%
+  hclust(method = "ward.D2")
+
+fviz_dend(res.hc, k = 2, # Cut in four groups
+          cex = 0.5, # label size
+          k_colors = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"),
+          color_labels_by_k = TRUE, # color labels by groups
+          rect = TRUE # Add rectangle around groups
+)
+
+    
+```
